@@ -33,14 +33,11 @@ namespace nlsat {
         random_gen     m_rand;
         std::mt19937 gen;
         std::uniform_int_distribution<> dis;
-        const double PI=3.1415926;
-        const int RANDOM_PRECISION=10000;
+        static constexpr double PI = 3.1415926;
+        static const int RANDOM_PRECISION = 8192;
+        distribution();
         distribution(var index, unsigned type, rational exp, rational var, unsigned ti);
-        void set_seed(unsigned s) {
-         gen.seed(s);
-         std::uniform_int_distribution<>::param_type new_params(0, 10000);
-         dis.param(new_params);
-        }
+        void set_seed(unsigned s);
       //   void set_seed(unsigned s) { m_rand.set_seed(s); }
       //   void set_seed(random_gen rand) { m_rand = rand; }
         double rand_GD(double i, double j);

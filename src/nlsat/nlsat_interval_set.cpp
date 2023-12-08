@@ -22,7 +22,10 @@ Revision History:
 #include <math.h>
 
 namespace nlsat {
-
+    distribution::distribution(){
+        std::uniform_int_distribution<>::param_type new_params(0, RANDOM_PRECISION);
+        dis.param(new_params);
+    }
     //hr
     distribution::distribution(var index, unsigned type, rational exp, rational var, unsigned ti):
             m_index(index), 
@@ -31,7 +34,11 @@ namespace nlsat {
             m_var(var) {
                 set_seed(ti);
     }
-
+    void distribution::set_seed(unsigned s) {
+        gen.seed(s);
+        std::uniform_int_distribution<>::param_type new_params(0, RANDOM_PRECISION);
+        dis.param(new_params);
+    }
     double distribution::rand_GD(double i, double j) { 
         double u1, u2, r;
         u1 = double(dis(gen)%RANDOM_PRECISION)/RANDOM_PRECISION;
@@ -142,7 +149,7 @@ namespace nlsat {
         rational result;
         if (m_type == 1) result = rational( to_char(rand_GD(m_exp.get_double(), m_var.get_double())).c_str() );
         else if (m_type == 2) result = rational( to_char(rand_UD(m_exp.get_double(), m_var.get_double())).c_str() );
-        // TRACE("hr", tout << "sample():" << to_char(rand()) << "\n";);
+        TRACE("hr", tout << "sample():" << to_char(rand()) << "\n";);
         m_am.set(w, result.to_mpq());
     }
     void distribution::sample(anum_manager & m_am, anum & w, anum lower, anum upper) {
@@ -188,7 +195,7 @@ namespace nlsat {
             if (m_type == 1) result = rational( to_char(PPF( CDF(a) + u*(1-CDF(a)) )).c_str() );
             else if (m_type == 2) 
                 result = rational( to_char(a + u*m_var.get_double()).c_str() );
-            TRACE("hr", tout << "sample(has_low, bound):" << result << "\n";);
+            TRACE("hr", tout << "sample(has_low, bound):" << result <<' '<<a<< "\n";);
             m_am.set(w, result.to_mpq());
         } else {
             double b = to_double(m_am, bound);

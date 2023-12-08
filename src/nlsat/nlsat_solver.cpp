@@ -33,6 +33,7 @@ Revision History:
 #include "nlsat/nlsat_evaluator.h"
 #include "nlsat/nlsat_explain.h"
 #include "nlsat/nlsat_params.hpp"
+#include <map>
 
 #define NLSAT_EXTRA_VERBOSE
 
@@ -275,7 +276,8 @@ namespace nlsat {
             std::fstream f;
             f.open(".extract", std::ios::in);
             std::string name, dst, exp, variable;
-            var index = 0;
+            unsigned index = 0, cnt = 0;
+            std::map<unsigned, unsigned> idmap;
             std::stringstream str;
             m_display_var(str, 0);
             while (f >> name >> dst >> exp >> variable) {
@@ -288,10 +290,17 @@ namespace nlsat {
                 rational r_exp = rational(exp.c_str());
                 rational r_var = rational(variable.c_str());
                 m_distribution.push_back(distribution(index, type, r_exp, r_var, ti));
-                distribution* temp = &m_distribution[m_distribution.size()-1];
-                m_distribution_map.insert(index, temp);
+                // distribution* temp = m_distribution.begin()+(m_distribution.size()-1);
+                idmap[cnt++] = index;
+                // m_distribution_map.insert(index, temp);
                 index = (index+1)%m_perm.size();
                 ti += 1;
+            }
+            //vector 动态数组，所以内存地址会变
+            cnt = 0;
+            for(auto it=m_distribution.begin();it!=m_distribution.end();++it){
+                distribution* temp = it;
+                m_distribution_map.insert(idmap[cnt++], temp);
             }
             f.close();
             std::string file_name = ".extract";
@@ -1516,7 +1525,6 @@ namespace nlsat {
                 TRACE("hr", tout<< "type: " << m_distribution_map.find(m_perm[m_xk], distribution)  << "\n";);
                 m_ism.peek_in_complement(m_infeasible[m_xk], m_is_int[m_xk], w, *distribution);
             } else {
-                TRACE("hr", tout<< "type: " << m_distribution_map.find(m_perm[m_xk], distribution)  << "\n";);
                 m_ism.peek_in_complement(m_infeasible[m_xk], m_is_int[m_xk], w, m_randomize);
             }
 
