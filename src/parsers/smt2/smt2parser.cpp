@@ -2514,6 +2514,7 @@ namespace smt2 {
             unsigned spos = sort_stack().size();
             unsigned num_params = parse_sorts("Parsing function declaration. Expecting sort list '('");
             parse_sort("Invalid function declaration");
+            check_distribution(id);
             func_decl_ref f(m());
             f = m().mk_func_decl(id, num_params, sort_stack().data() + spos, sort_stack().back());
             sort_stack().shrink(spos);

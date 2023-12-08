@@ -147,7 +147,7 @@ namespace nlsat {
     }
     void distribution::sample(anum_manager & m_am, anum & w, anum lower, anum upper) {
         SASSERT(m_type != 0);
-        double u = double(dis(gen)%RANDOM_PRECISION)/RANDOM_PRECISION;
+        double u = double(dis(gen)%(RANDOM_PRECISION-1)+1)/RANDOM_PRECISION; //边界情况可能不满足
         double a = to_double(m_am, lower);
         double b = to_double(m_am, upper);
         // if (a >= b) {
@@ -181,13 +181,13 @@ namespace nlsat {
 
     void distribution::sample(anum_manager & m_am, anum & w, bool has_low, anum bound) {
         SASSERT(m_type != 0);
-        double u = double(dis(gen)%RANDOM_PRECISION) / RANDOM_PRECISION;
+        double u = double(dis(gen)%(RANDOM_PRECISION-1)+1) / RANDOM_PRECISION; //边界情况可能不满足
         if (has_low) {
             double a = to_double(m_am, bound);
             rational result;
             if (m_type == 1) result = rational( to_char(PPF( CDF(a) + u*(1-CDF(a)) )).c_str() );
             else if (m_type == 2) 
-                result = rational( to_char(a + double(dis(gen)%RANDOM_PRECISION)*m_var.get_double()/RANDOM_PRECISION).c_str() );
+                result = rational( to_char(a + u*m_var.get_double()).c_str() );
             TRACE("hr", tout << "sample(has_low, bound):" << result << "\n";);
             m_am.set(w, result.to_mpq());
         } else {
@@ -195,7 +195,7 @@ namespace nlsat {
             rational result;
             if (m_type == 1) result = rational( to_char(PPF( u*(CDF(b)) )).c_str() );
             else if (m_type == 2) 
-                result = rational( to_char(b - double(dis(gen)%RANDOM_PRECISION)*m_var.get_double()/RANDOM_PRECISION).c_str() );
+                result = rational( to_char(b - u*m_var.get_double()).c_str() );
             TRACE("hr", tout << "sample(has_upp, bound):" << result << "\n";);
             m_am.set(w, result.to_mpq());
         }
@@ -232,7 +232,7 @@ namespace nlsat {
             result = std::exp((-1)*(loc-exp)*(loc-exp)/(2*var*var))/(std::sqrt(2*PI)*var);
         } else if (m_type == 2) {
             double var = m_var.get_double();
-            result = 0.0001;
+            result = 1.0/RANDOM_PRECISION;
         }
         return result;
     }
@@ -1044,28 +1044,26 @@ namespace nlsat {
                 prob[i] = 0; // 优先考虑区间
             }
         }
-#define RANDOM_PRECISION 10000
+// #define RANDOM_PRECISION 10000
         if (prob_total != 0) {
-            double rand = (distribution.dis(distribution.gen)%RANDOM_PRECISION)*prob_total/RANDOM_PRECISION;
+            double rand = (distribution.dis(distribution.gen)%distribution.RANDOM_PRECISION)*prob_total/distribution.RANDOM_PRECISION;
             unsigned index = 0;
-            while (rand-prob[index] > 0) rand -= prob[index++];
+            while (rand-prob[index] > 0 || prob[index] == 0) rand -= prob[index++];
             if (index == 0) {
                 SASSERT(!s->m_intervals[0].m_lower_inf);
                 distribution.sample(m_am, w, false, s->m_intervals[0].m_lower);
                 // distribution.sample(m_am, w, false, s->m_intervals[0].m_lower, rand);
-                return;
             } else if (index == num) {
                 SASSERT(!s->m_intervals[num-1].m_upper_inf);
                 distribution.sample(m_am, w, true, s->m_intervals[num-1].m_upper);
                 // distribution.sample(m_am, w, true, s->m_intervals[num-1].m_upper, rand);
-                return;
             } else {
                 distribution.sample(m_am, w, s->m_intervals[index-1].m_upper, s->m_intervals[index].m_lower);
                 // distribution.sample(m_am, w, s->m_intervals[index-1].m_upper, s->m_intervals[index].m_lower, rand);
-                return;
             }
+            delete [] prob;
+            return;
         }
-
         // Try to find a rational
         double prob_opt = 0;
         unsigned irrational_i = UINT_MAX;
