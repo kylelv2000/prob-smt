@@ -23,7 +23,7 @@ Revision History:
 
 namespace nlsat {
     distribution::distribution(){
-        std::uniform_int_distribution<>::param_type new_params(0, RANDOM_PRECISION);
+        std::uniform_int_distribution<>::param_type new_params(0, RANDOM_PRECISION-1);
         dis.param(new_params);
     }
     //hr
@@ -36,7 +36,7 @@ namespace nlsat {
     }
     void distribution::set_seed(unsigned s) {
         gen.seed(s);
-        std::uniform_int_distribution<>::param_type new_params(0, RANDOM_PRECISION);
+        std::uniform_int_distribution<>::param_type new_params(0, RANDOM_PRECISION-1);
         dis.param(new_params);
     }
     double distribution::rand_GD(double i, double j) { 
@@ -1092,6 +1092,84 @@ namespace nlsat {
         // Last option: peek irrational witness :-(
         SASSERT(s->m_intervals[irrational_i].m_upper_open && s->m_intervals[irrational_i+1].m_lower_open);
         m_am.set(w, s->m_intervals[irrational_i].m_upper);
+    }
+
+    //lkh
+    void interval_set_manager::peek_in_complement(interval_set const * s, bool is_int, anum & w, distribution& distribution, int k) {
+        SASSERT(!is_full(s));
+        double mrand = (distribution.dis(distribution.gen)%distribution.RANDOM_PRECISION)*1.0/distribution.RANDOM_PRECISION;
+        if(k == -1 || is_int/*|| mrand < 0.001 */){   //使用z3原处理方案
+            peek_in_complement(s, is_int, w, true);
+            return;
+        }
+        rational result, lb, rb, tl ,tr;
+        lb = distribution.m_min[k];
+        rb = distribution.m_max[k];
+
+        double mid = (lb.get_double()+rb.get_double())/2;
+        if (s == nullptr) {
+            result = rational( distribution.to_char((lb.get_double()+rb.get_double())/2).c_str() );
+            m_am.set(w, result.to_mpq());
+            return;
+        }
+        unsigned n = 0;
+        unsigned num = num_intervals(s);
+
+        if (!s->m_intervals[0].m_lower_inf) {
+            // lower is not -oo
+            m_am.to_rational(s->m_intervals[0].m_lower, tl);
+            if(lb < tl){
+                n++;
+                result = rational( distribution.to_char((lb.get_double()+tl.get_double())/2).c_str() );
+                m_am.set(w, result.to_mpq());
+            }
+        }
+        if (!s->m_intervals[num-1].m_upper_inf) {
+            // upper is not oo
+            m_am.to_rational(s->m_intervals[num-1].m_upper, tr);
+            if(tr < rb){
+                n++;
+                if (n == 1 || m_rand()%n == 0){
+                    result = rational( distribution.to_char((rb.get_double()+tr.get_double())/2).c_str() );
+                    m_am.set(w, result.to_mpq());
+                }
+            }
+        }
+        
+        // Try to find a gap that is not an unit.
+        for (unsigned i = 1; i < num; i++) {
+            if (!m_am.lt(s->m_intervals[i-1].m_upper, s->m_intervals[i].m_lower))
+                continue;
+            m_am.to_rational(s->m_intervals[i-1].m_upper, tl);
+            m_am.to_rational(s->m_intervals[i].m_lower, tr);
+            if (rb < tl || tr < lb) //不在范围内
+                continue;
+            if (tl < lb) tl = lb;
+            if (rb < tr) tr = rb;
+            n++;
+            if (n == 1 || m_rand()%n == 0){
+                result = rational( distribution.to_char((tl.get_double()+tr.get_double())/2).c_str() );
+                m_am.set(w, result.to_mpq());
+            }
+        }
+        
+        if (n > 0)
+            return;
+        
+        // Try to find a rational
+        for (unsigned i = 1; i < num; i++) {
+            if (s->m_intervals[i-1].m_upper_open && s->m_intervals[i].m_lower_open) {
+                if (!m_am.is_rational(s->m_intervals[i-1].m_upper))
+                    continue;
+                m_am.to_rational(s->m_intervals[i-1].m_upper, tl);
+                if(lb < tl && tl < rb){
+                    m_am.set(w, s->m_intervals[i-1].m_upper);
+                    return;
+                }
+            }
+        }
+        //otherwise
+        peek_in_complement(s, is_int, w, true);
     }
 
     std::ostream& interval_set_manager::display(std::ostream & out, interval_set const * s) const {

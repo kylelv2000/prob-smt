@@ -446,14 +446,23 @@ namespace smt2 {
                 symbol distribution = curr_id();
                 TRACE("hr", tout << "____Distribution____" << "\n";);
                 if (distribution == "GD") {
-                    next();
-                    rational param_1 = curr_numeral();
-                    next();
-                    rational param_2 = curr_numeral();
-                    next();
                     std::ofstream fout;
                     fout.open(".extract", std::ios::app);
-                    fout << id << " " << distribution << " " << param_1 << " " << param_2 << std::endl;
+                    fout << id << " " << distribution;
+                    next();
+                    int cnt = curr_numeral().get_int32();
+                    fout << " " << cnt;
+                    for(int i = 0; i < cnt; ++i){
+                        next();
+                        rational param_min = curr_numeral();
+                        next();
+                        rational param_max = curr_numeral();
+                        next();
+                        rational param_num = curr_numeral();
+                        fout << " " <<  param_min << " " <<  param_max << " " <<  param_num;
+                    }
+                    next();
+                    fout << std::endl;
                     fout.close();
                 }else if (distribution == "UD") {
                     next();

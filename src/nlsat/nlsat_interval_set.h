@@ -31,10 +31,12 @@ namespace nlsat {
         rational       m_exp;
         rational       m_var;
         random_gen     m_rand;
+        std::vector<rational> m_min, m_max;
+        std::vector<int> m_cnt;
         std::mt19937 gen;
         std::uniform_int_distribution<> dis;
         static constexpr double PI = 3.1415926;
-        static const int RANDOM_PRECISION = 8192;
+        static const int RANDOM_PRECISION = 10000;
         distribution();
         distribution(var index, unsigned type, rational exp, rational var, unsigned ti);
         void set_seed(unsigned s);
@@ -145,6 +147,7 @@ namespace nlsat {
         */
         void peek_in_complement(interval_set const * s, bool is_int, anum & w, bool randomize);
         void peek_in_complement(interval_set const * s, bool is_int, anum & w, distribution& distribution);
+        void peek_in_complement(interval_set const * s, bool is_int, anum & w, distribution& distribution, int k);
     };
 
     typedef obj_ref<interval_set, interval_set_manager> interval_set_ref;

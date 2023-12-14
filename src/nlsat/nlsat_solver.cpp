@@ -126,9 +126,14 @@ namespace nlsat {
         var_vector             m_inv_perm;
         // m_perm:     internal -> external
         // m_inv_perm: external -> internal
-        vector<distribution>      m_distribution;
-        distribution* m_distribution_UD;
-        u_map<distribution*>      m_distribution_map;
+        vector<distribution>   m_distribution;
+        unsigned               m_data_size;
+        vector<unsigned>       m_data_num;
+        distribution*          m_distribution_UD;
+        u_map<distribution*>   m_distribution_map;
+
+        std::mt19937 m_gen;
+        std::uniform_int_distribution<> m_distrib;
 
         struct perm_display_var_proc : public display_var_proc {
             var_vector &             m_perm;
@@ -264,7 +269,7 @@ namespace nlsat {
             return str.str();
         }
 
-        void init_distribution() {
+        bool init_distribution() {
             // TRACE("hr", tout << m_perm.size() << "\n";);
             // for (unsigned i=0; i<m_perm.size(); i++) {
             //     TRACE("hr", tout << "internal: " << i << "<------>" << "external: " << m_perm[i] << "\n";);
@@ -276,26 +281,61 @@ namespace nlsat {
             std::fstream f;
             f.open(".extract", std::ios::in);
             std::string name, dst, exp, variable;
-            unsigned index = 0, cnt = 0;
+            unsigned index = 0, cnt = 0, sz, num, type, sum = 0;
             std::map<unsigned, unsigned> idmap;
             std::stringstream str;
             m_display_var(str, 0);
-            while (f >> name >> dst >> exp >> variable) {
-                while (get_var_name(index) != name) index = (index+1)%m_perm.size();
+
+            bool undo = true;
+
+            while (f >> name >> dst) {
+                TRACE("hr", tout<< m_perm.size() << " " << name << "\n";);
+                while (get_var_name(index) != name){
+                // TRACE("hr", tout<< get_var_name(index) << " " << name << "\n";);
+                    index = (index+1)%m_perm.size();
+                }
                 TRACE("hr", tout<< get_var_name(index) << " " << name << "\n";);
                 SASSERT(get_var_name(index) == name);
-                unsigned type = 0;
+                type = 0;
                 if (dst == "GD") type = 1;
                 else if (dst == "UD") type = 2;
-                rational r_exp = rational(exp.c_str());
-                rational r_var = rational(variable.c_str());
-                m_distribution.push_back(distribution(index, type, r_exp, r_var, ti));
+
+                TRACE("hr", tout<< "type:" << type << "\n";);
+                if(type == 1){
+                    f >> sz;
+                    TRACE("hr", tout<< "sz:" << sz << "\n";);
+                    m_data_size = sz;
+                    distribution tmp;
+                    for(int i=0;i<sz;++i){
+                        f >> exp >> variable >> num;
+                        rational mmin = rational(exp.c_str());
+                        rational mmax = rational(variable.c_str());
+                        tmp.m_min.push_back(mmin);
+                        tmp.m_max.push_back(mmax);
+                        // tmp.m_cnt.push_back(num);
+                        if(undo){
+                            m_data_num.push_back(num);
+                            sum += num;
+                        }
+                    }
+                    undo = false;
+                    m_distribution.push_back(tmp);
+                }else{
+                    f >> exp >> variable;
+                    rational r_exp = rational(exp.c_str());
+                    rational r_var = rational(variable.c_str());
+                    m_distribution.push_back(distribution(index, type, r_exp, r_var, ti));
+                }
                 // distribution* temp = m_distribution.begin()+(m_distribution.size()-1);
                 idmap[cnt++] = index;
                 // m_distribution_map.insert(index, temp);
                 index = (index+1)%m_perm.size();
                 ti += 1;
             }
+            m_gen.seed(ti);
+            std::uniform_int_distribution<>::param_type new_params(0, sum);
+            m_distrib.param(new_params);
+
             //vector 动态数组，所以内存地址会变
             cnt = 0;
             for(auto it=m_distribution.begin();it!=m_distribution.end();++it){
@@ -305,7 +345,8 @@ namespace nlsat {
             f.close();
             std::string file_name = ".extract";
             std::ofstream file_writer(file_name, std::ios_base::out);
-            TRACE("hr", tout<< m_distribution.size() << "\n";);
+            TRACE("hr", tout<< "m_distribution.size():"<<m_distribution.size() << "\n";);
+            return type == 1;
         }
 
 
@@ -1510,7 +1551,7 @@ namespace nlsat {
         /**
            \brief Assign m_xk
         */
-        void select_witness() {
+        void select_witness(int k = -1) {
             scoped_anum w(m_am);
             SASSERT(!m_ism.is_full(m_infeasible[m_xk]));
             distribution* distribution;
@@ -1523,7 +1564,7 @@ namespace nlsat {
             
             if (m_distribution_map.find(m_perm[m_xk], distribution)) {
                 TRACE("hr", tout<< "type: " << m_distribution_map.find(m_perm[m_xk], distribution)  << "\n";);
-                m_ism.peek_in_complement(m_infeasible[m_xk], m_is_int[m_xk], w, *distribution);
+                m_ism.peek_in_complement(m_infeasible[m_xk], m_is_int[m_xk], w, *distribution, k);
             } else {
                 m_ism.peek_in_complement(m_infeasible[m_xk], m_is_int[m_xk], w, m_randomize);
             }
@@ -1559,7 +1600,7 @@ namespace nlsat {
         /**
            \brief main procedure
         */
-        lbool search() {
+        lbool search(int k = -1) {
             TRACE("nlsat", tout << "starting search...\n"; display(tout); tout << "\nvar order:\n"; display_vars(tout););
             TRACE("nlsat_proof", tout << "ASSERTED\n"; display(tout););
             TRACE("nlsat_proof_sk", tout << "ASSERTED\n"; display_abst(tout);); 
@@ -1613,16 +1654,26 @@ namespace nlsat {
                     }
                 }
                 else {
-                    select_witness();
+                    select_witness(k);
                 }
             }
         }
 
-
-        lbool search_check() {
+        int get_rand(){
+            int random_number = m_distrib(m_gen);
+            for(int i=0;i<m_data_size;++i){
+                if(m_data_num[i]>random_number) return i;
+                random_number -= m_data_num[i];
+            }
+            return -1;
+        }
+        lbool search_check(bool is_GD = false) {
             lbool r = l_undef;
             while (true) {
-                r = search();
+                if(is_GD){
+                    r = search(get_rand());
+                }
+                else r = search();
                 if (r != l_true) break; 
                 vector<std::pair<var, rational>> bounds;                
 
@@ -1674,7 +1725,7 @@ namespace nlsat {
         lbool check() {
             TRACE("nlsat_smt2", display_smt2(tout););
             TRACE("nlsat_fd", tout << "is_full_dimensional: " << is_full_dimensional() << "\n";);
-            init_distribution();
+            bool is_GD = init_distribution();
             init_search();
             m_explain.set_full_dimensional(is_full_dimensional());
             bool reordered = false;
@@ -1696,7 +1747,7 @@ namespace nlsat {
                 reordered = true;
             }
             sort_watched_clauses();
-            lbool r = search_check();
+            lbool r = search_check(is_GD);
             CTRACE("nlsat_model", r == l_true, tout << "model before restore order\n"; display_assignment(tout););
             if (reordered) {
                 restore_order();
