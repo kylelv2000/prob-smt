@@ -312,10 +312,8 @@ namespace nlsat {
                 if (dst == "GD") atype = type = 1;
                 else if (dst == "UD") type = 2;
 
-                TRACE("hr", tout<< "type:" << type << "\n";);
                 if(type == 1){
                     f >> sz;
-                    TRACE("hr", tout<< "sz:" << sz << "\n";);
                     m_data_size = sz;
                     distribution tmp;
                     for(int i=0;i<sz;++i){
@@ -355,8 +353,8 @@ namespace nlsat {
                 m_distribution_map.insert(idmap[cnt++], temp);
             }
             f.close();
-            // std::string file_name = ".extract";
-            // std::ofstream file_writer(file_name, std::ios_base::out);
+            std::string file_name = ".extract";
+            std::ofstream file_writer(file_name, std::ios_base::out);
             TRACE("hr", tout<< "m_distribution.size():"<<m_distribution.size() << "\n";);
             return atype == 1;
         }
