@@ -281,17 +281,23 @@ namespace nlsat {
             std::stringstream str;
             m_display_var(str, 0);
             while (f >> name >> dst >> exp >> variable) {
-                while (get_var_name(index) != name) index = (index+1)%m_perm.size();
+                int ttime = 0;
+                while (get_var_name(index) != name){
+                    if(++ttime == m_perm.size()) break;
+                    index = (index+1)%m_perm.size();
+                }
                 TRACE("hr", tout<< get_var_name(index) << " " << name << "\n";);
-                SASSERT(get_var_name(index) == name);
+                // SASSERT(get_var_name(index) == name);
                 unsigned type = 0;
                 if (dst == "GD") type = 1;
                 else if (dst == "UD") type = 2;
                 rational r_exp = rational(exp.c_str());
                 rational r_var = rational(variable.c_str());
-                m_distribution.push_back(distribution(index, type, r_exp, r_var, ti));
+                if(ttime < m_perm.size()){
+                    m_distribution.push_back(distribution(index, type, r_exp, r_var, ti));
                 // distribution* temp = m_distribution.begin()+(m_distribution.size()-1);
-                idmap[cnt++] = index;
+                    idmap[cnt++] = index;
+                }
                 // m_distribution_map.insert(index, temp);
                 index = (index+1)%m_perm.size();
                 ti += 1;
