@@ -270,13 +270,6 @@ namespace nlsat {
         }
 
         bool init_distribution() {
-            // 他有多个调用诶
-
-            TRACE("hr", tout<< "m_distribution.size():"<<m_distribution.size() << "\n";);
-            m_distribution.reset();
-            m_distribution_map.reset();
-            m_data_num.reset();
-            
             // TRACE("hr", tout << m_perm.size() << "\n";);
             // for (unsigned i=0; i<m_perm.size(); i++) {
             //     TRACE("hr", tout << "internal: " << i << "<------>" << "external: " << m_perm[i] << "\n";);
@@ -353,8 +346,9 @@ namespace nlsat {
                 m_distribution_map.insert(idmap[cnt++], temp);
             }
             f.close();
-            std::string file_name = ".extract";
-            std::ofstream file_writer(file_name, std::ios_base::out);
+            // 他有多个调用诶
+            // std::string file_name = ".extract";
+            // std::ofstream file_writer(file_name, std::ios_base::out);
             TRACE("hr", tout<< "m_distribution.size():"<<m_distribution.size() << "\n";);
             return atype == 1;
         }
