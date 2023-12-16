@@ -1095,6 +1095,11 @@ namespace nlsat {
     }
 
     //lkh
+    void my_to_rational(anum_manager & m_am, const anum & ori, rational & dst){
+        std::stringstream str;
+        m_am.display_decimal(str, ori);
+        dst = rational(str.str().c_str());
+    }
     void interval_set_manager::peek_in_complement(interval_set const * s, bool is_int, anum & w, distribution& distribution, int k) {
         SASSERT(!is_full(s));
         double mrand = (distribution.dis(distribution.gen)%distribution.RANDOM_PRECISION)*1.0/distribution.RANDOM_PRECISION;
@@ -1117,7 +1122,7 @@ namespace nlsat {
 
         if (!s->m_intervals[0].m_lower_inf) {
             // lower is not -oo
-            m_am.to_rational(s->m_intervals[0].m_lower, tl);
+            my_to_rational(m_am, s->m_intervals[0].m_lower, tl);
             if(lb < tl){
                 n++;
                 result = rational( distribution.to_char((lb.get_double()+tl.get_double())/2).c_str() );
@@ -1126,7 +1131,7 @@ namespace nlsat {
         }
         if (!s->m_intervals[num-1].m_upper_inf) {
             // upper is not oo
-            m_am.to_rational(s->m_intervals[num-1].m_upper, tr);
+            my_to_rational(m_am, s->m_intervals[num-1].m_upper, tr);
             if(tr < rb){
                 n++;
                 if (n == 1 || m_rand()%n == 0){
@@ -1140,8 +1145,8 @@ namespace nlsat {
         for (unsigned i = 1; i < num; i++) {
             if (!m_am.lt(s->m_intervals[i-1].m_upper, s->m_intervals[i].m_lower))
                 continue;
-            m_am.to_rational(s->m_intervals[i-1].m_upper, tl);
-            m_am.to_rational(s->m_intervals[i].m_lower, tr);
+            my_to_rational(m_am, s->m_intervals[i-1].m_upper, tl);
+            my_to_rational(m_am, s->m_intervals[i].m_lower, tr);
             if (rb < tl || tr < lb) //不在范围内
                 continue;
             if (tl < lb) tl = lb;
@@ -1161,7 +1166,7 @@ namespace nlsat {
             if (s->m_intervals[i-1].m_upper_open && s->m_intervals[i].m_lower_open) {
                 if (!m_am.is_rational(s->m_intervals[i-1].m_upper))
                     continue;
-                m_am.to_rational(s->m_intervals[i-1].m_upper, tl);
+                my_to_rational(m_am, s->m_intervals[i-1].m_upper, tl);
                 if(lb < tl && tl < rb){
                     m_am.set(w, s->m_intervals[i-1].m_upper);
                     return;
